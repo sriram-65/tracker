@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tracker For Me</title>
+   
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .date-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border: 1px solid #ddd;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .date-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .date-text {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .auth-form {
+            max-width: 300px;
+            margin: 100px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .auth-form input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .auth-form button {
+            width: 100%;
+            padding: 10px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .error-message {
+            color: red;
+            margin-top: 10px;
+            text-align: center;
+        }
+        
+        .current {
+            border: 1.3px solid #29f700;
+            box-shadow: 9px 9px 0px black;
+        }
+
+        .finished{
+            border: 2.4px dashed rgb(99, 5, 5);
+        }
+        
+      
+        .form-label {
+            font-weight: 600;
+            margin-top: 10px;
+        }
+        .unfinished{
+            border:1px double orangered;
+        }
+        
+        .modal-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .modal-title {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    {% if isverifed %}
+    <div>
+        <h1>Welcome to My Tracker</h1>
+        <i><b id="quotes"></b></i>
+        <br>
+        <a href="/logout">Logout</a>
+        <div class="cards-grid" id="cardsContainer">
+          
+        </div>
+        <!-- <input type="range" id="ran"> -->
+    </div>
+    {% else %}
+    <div class="auth-form">
+        <h1>Please Authenticate to Enter</h1>
+        <form action="/" method="POST">
+            <input type="password" name="password" placeholder="Enter Password" required>
+            <button type="submit">Submit</button>
+            
+            {% if er %}
+            <p class="error-message">{{ er }}</p>
+            {% endif %}
+        </form>
+    </div>
+    {% endif %}
+    
+     
+    <div class="modal fade" id="trackerModal" tabindex="-1" aria-labelledby="trackerModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="trackerModalLabel">Daily Tracker - <span id="modalDate"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="trackerForm">
+                        <div class="mb-3">
+                            <label for="stuck" class="form-label">1. Where you Stuck</label>
+                            <textarea class="form-control" id="stuck" rows="3" placeholder="Describe what challenges or blockers you faced today..."></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="learned" class="form-label">2. What you learned</label>
+                            <textarea class="form-control" id="learned" rows="3" placeholder="List new things you learned or skills you developed..."></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="good" class="form-label">3. Good</label>
+                            <textarea class="form-control" id="good" rows="3" placeholder="What went well today? Positive achievements..."></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="bad" class="form-label">4. Bad</label>
+                            <textarea class="form-control" id="bad" rows="3" placeholder="What could have been better? Areas for improvement..."></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">5. Simple Notes</label>
+                            <textarea class="form-control" id="notes" rows="3" placeholder="Any additional notes or thoughts..."></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="saveTrackerData()">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+    async function Show_Placeholders() {
+        try {
+            const response = await fetch("/show");
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            return { Success: false, data: [] };
+        }
+    }
+
+    function formate_date(){
+        let d = new Date()
+        let s = `${d.getDate()}-${d.getMonth()+1}-${d.getFullYear()}`
+        return s
+    } 
+    
+    function fetch_Quotes(){
+        return fetch("https://quotes-api-self.vercel.app/quote").then(res=>res.json())
+    }
+
+    fetch_Quotes().then(data=>{
+        document.getElementById("quotes").innerText=data.quote;
+    })
+
+
+    let currentSelectedDate = '';
+    let total_cards = 0
+    let finishedCards = 0
+    async function LoadContent(){
+       
+        const data = await Show_Placeholders();
+        const container = document.getElementById('cardsContainer');
+         container.innerHTML = ''
+        if (data.Success && data.data && data.data.length > 0) {
+            data.data.forEach(entry => {
+                total_cards++
+                if(entry.finished==true){
+                    finishedCards++
+                }
+                if(entry.date<formate_date()){
+                   if(entry.finished!=true){
+                      card.classList.add("unfinished")
+                      
+                   }
+                }
+                const card = document.createElement('div');
+                card.className = 'date-card';
+                
+                card.onclick = function(){
+                    ShowPopup(entry.date)
+                    loadExistingData(entry)
+                }
+                card.innerHTML = `<div class="date-text">${entry.date}</div> <br> <p> ${entry.notes}</i></p>`;
+                if(entry.date == formate_date()){
+                    card.classList.add("current")
+                }
+
+                if(entry.finished==true){
+                    card.classList.add("finished")
+                }
+                container.appendChild(card);
+            });
+            if(total_cards==finishedCards){
+                    document.querySelector("body").style.background = '#29f7'
+                    // alert("Congralations You have Finihed 7 days")
+            }
+        } else {
+            container.innerHTML = '<p>No data available</p>';
+        }
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+       LoadContent()
+    });
+
+    function ShowPopup(date) {
+        currentSelectedDate = date;
+        
+        document.getElementById('modalDate').textContent = date;
+        
+        
+        document.getElementById('stuck').value = '';
+        document.getElementById('learned').value = '';
+        document.getElementById('good').value = '';
+        document.getElementById('bad').value = '';
+        document.getElementById('notes').value = '';
+
+        
+        loadExistingData(date);
+        
+        
+        const modal = new bootstrap.Modal(document.getElementById('trackerModal'));
+        modal.show();
+    }
+
+    function loadExistingData(data) {
+         
+        
+            document.getElementById('stuck').value = data.stuck || '';
+            document.getElementById('learned').value = data.learned || '';
+            document.getElementById('good').value = data.good || '';
+            document.getElementById('bad').value = data.bad || '';
+            document.getElementById('notes').value = data.notes || '';
+        
+    }
+
+    function saveTrackerData() {
+        const trackerData = {
+            date: currentSelectedDate,
+            stuck: document.getElementById('stuck').value,
+            learned: document.getElementById('learned').value,
+            good: document.getElementById('good').value,
+            bad: document.getElementById('bad').value,
+            notes: document.getElementById('notes').value,
+            timestamp: new Date().toISOString()
+        };
+        
+        fetch(`/finish/${currentSelectedDate}` , {
+            headers:{
+                "Content-Type":"application/json"
+            },
+            method:"POST",
+            body:JSON.stringify({learned:trackerData.learned , good:trackerData.good , bad:trackerData.bad , stuck:trackerData.stuck , notes:trackerData.notes})
+        }).then(res=>res.json()).then(data=>{
+             if(data.Success==true){
+               alert('Data saved successfully!');
+               closePopup() 
+               LoadContent()
+             }
+             else{
+                alert("Failed to Update")
+             }
+        }).catch(e=>{
+            alert("Server Error")
+        })
+        
+        
+        
+    }
+
+    function closePopup(){
+        const modal = bootstrap.Modal.getInstance(document.getElementById('trackerModal'));
+        modal.hide();
+    }
+
+
+    </script>
+</body>
+</html>
