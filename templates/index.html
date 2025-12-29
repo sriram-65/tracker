@@ -208,6 +208,7 @@
     async function LoadContent(){
        
         const data = await Show_Placeholders();
+        const card = document.createElement('div');
         const container = document.getElementById('cardsContainer');
          container.innerHTML = ''
         if (data.Success && data.data && data.data.length > 0) {
@@ -222,7 +223,7 @@
                       
                    }
                 }
-                const card = document.createElement('div');
+                
                 card.className = 'date-card';
                 
                 card.onclick = function(){
